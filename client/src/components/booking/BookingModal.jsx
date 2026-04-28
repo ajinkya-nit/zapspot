@@ -5,7 +5,22 @@ import { useBooking } from '../../context/BookingContext';
 import { useAuth } from '../../context/AuthContext';
 import { generateTimeSlots, formatCurrency } from '../../utils/helpers';
 import { generateReceipt } from '../../utils/receipt';
+import { api } from '../../services/api';
 import './BookingModal.css';
+
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 function SlotCalendar({ selectedDate, onSelectDate }) {
   const today = new Date();
@@ -101,42 +116,113 @@ export default function BookingModal() {
   const gst = Math.max(0, Math.round((baseCost - discount) * 0.18));
   const total = Math.max(0, baseCost - discount + gst);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsProcessing(true);
-    
-    // Simulating API/Payment gateway delay to make it feel real
-    setTimeout(() => {
-      const newBooking = addBooking({
+
+    try {
+      const res = await loadRazorpayScript();
+      if (!res) {
+        alert('Razorpay SDK failed to load. Are you online?');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Create Order on Backend
+      const order = await api.createRazorpayOrder(total);
+
+      if (!order || !order.id) {
+        alert('Server error. Please try again.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Ensure station ID is a valid MongoDB ObjectId (for mock stations)
+      const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(selectedStation._id);
+      const safeStationId = isValidObjectId ? selectedStation._id : '60d5ecb8b392d72f9c4b4f50';
+
+      // Booking data to pass to verify step
+      const bookingData = {
         stationName: selectedStation.name,
-        stationId: selectedStation._id,
-        chargerId: selectedCharger?.id,
-        chargerType: selectedCharger?.type,
+        station: safeStationId,
+        chargerId: selectedCharger?._id || selectedCharger?.id || 'charger_1',
+        chargerType: selectedCharger?.type || 'Type 2',
         date: selectedDate,
         timeSlot: selectedSlot?.label,
         cost: total,
         totalKwh: parseFloat(kwhEstimate),
         vehicle: user?.vehicles?.[0]?.name || 'My EV',
-        discount,
+      };
+
+      const options = {
+        key: 'rzp_test_Sisdya7TlSzOhr',
+        amount: order.amount,
+        currency: order.currency,
+        name: "Zapspot",
+        description: `Booking at ${selectedStation.name}`,
+        order_id: order.id,
+        handler: async function (response) {
+          try {
+            console.log('Razorpay payment successful, verifying...', response);
+            // Verify Payment
+            const verifyRes = await api.verifyRazorpayPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              bookingData
+            });
+
+            console.log('Verification successful, backend response:', verifyRes);
+
+            // Add confirmed booking to UI
+            const newBooking = addBooking(verifyRes);
+            setBooking(newBooking);
+            setIsProcessing(false);
+            setStep(4);
+
+            // Generate QR code
+            const qrData = JSON.stringify({
+              bookingId: newBooking._id,
+              station: selectedStation.name,
+              charger: selectedCharger?.type,
+              date: selectedDate,
+              time: selectedSlot?.label,
+              cost: total,
+            });
+            QRCode.toDataURL(qrData, {
+              width: 200,
+              margin: 2,
+              color: { dark: '#1D1D1F', light: '#FFFFFF' }
+            }).then(url => setQrDataUrl(url)).catch(() => setQrDataUrl(''));
+          } catch (verifyError) {
+            alert('Payment verification failed: ' + verifyError.message);
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user?.name || "Test User",
+          email: user?.email || "test@example.com",
+        },
+        theme: {
+          color: "#0f766e",
+        },
+        modal: {
+          ondismiss: function() {
+            setIsProcessing(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        alert('Payment failed: ' + response.error.description);
+        setIsProcessing(false);
       });
-      setBooking(newBooking);
+
+      rzp.open();
+    } catch (err) {
+      alert('Error initiating payment: ' + err.message);
       setIsProcessing(false);
-      setStep(4);
-      
-      // Generate QR code
-      const qrData = JSON.stringify({
-        bookingId: newBooking._id,
-        station: selectedStation.name,
-        charger: selectedCharger?.type,
-        date: selectedDate,
-        time: selectedSlot?.label,
-        cost: total,
-      });
-      QRCode.toDataURL(qrData, {
-        width: 200,
-        margin: 2,
-        color: { dark: '#1D1D1F', light: '#FFFFFF' }
-      }).then(url => setQrDataUrl(url)).catch(() => setQrDataUrl(''));
-    }, 1500);
+    }
   };
 
   const handleClose = () => {

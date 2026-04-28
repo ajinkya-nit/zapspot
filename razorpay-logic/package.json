@@ -1,0 +1,10 @@
+{
+  "name": "test-razorpay-keys",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node verify-razorpay.mjs",
+    "simulate": "node simulate-payment.mjs",
+    "serve": "node demo-server.mjs"
+  }
+}

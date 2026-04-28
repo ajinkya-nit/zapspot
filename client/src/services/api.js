@@ -31,6 +31,8 @@ export const api = {
 
   // Bookings
   createBooking: (data) => request('/bookings', { method: 'POST', body: JSON.stringify(data) }),
+  createRazorpayOrder: (amount) => request('/bookings/razorpay/order', { method: 'POST', body: JSON.stringify({ amount }) }),
+  verifyRazorpayPayment: (data) => request('/bookings/razorpay/verify', { method: 'POST', body: JSON.stringify(data) }),
   getMyBookings: () => request('/bookings/my'),
   cancelBooking: (id) => request(`/bookings/${id}/cancel`, { method: 'PATCH' }),
 

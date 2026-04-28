@@ -13,9 +13,9 @@ export function BookingProvider({ children }) {
   const addBooking = (booking) => {
     const newBooking = {
       ...booking,
-      _id: 'b' + Date.now(),
-      status: 'upcoming',
-      kwhDelivered: 0,
+      _id: booking._id || 'b' + Date.now(),
+      status: booking.status || 'upcoming',
+      kwhDelivered: booking.kwhDelivered || 0,
       progress: 0,
     };
     setBookings(prev => [newBooking, ...prev]);

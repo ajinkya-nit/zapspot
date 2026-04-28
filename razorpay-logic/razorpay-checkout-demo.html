@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Razorpay Test Checkout</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f1e8;
+        --panel: #ffffff;
+        --ink: #1f2328;
+        --muted: #5d6673;
+        --accent: #0f766e;
+        --accent-2: #d97706;
+        --border: rgba(31, 35, 40, 0.12);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Georgia, 'Times New Roman', serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 32%),
+          radial-gradient(circle at bottom right, rgba(217, 119, 6, 0.15), transparent 28%),
+          linear-gradient(180deg, #fbf8f2 0%, var(--bg) 100%);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(720px, 100%);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: 0 24px 70px rgba(31, 35, 40, 0.12);
+        padding: 28px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 4vw, 3.25rem);
+        line-height: 0.95;
+      }
+      p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 1rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 22px 0;
+      }
+      .stat {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: linear-gradient(180deg, #fff 0%, #fcfaf6 100%);
+      }
+      .label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .value {
+        font-size: 1.08rem;
+        font-weight: 700;
+        word-break: break-word;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 14px 20px;
+        font-size: 1rem;
+        font-weight: 700;
+        color: white;
+        background: linear-gradient(135deg, var(--accent), #115e59);
+        cursor: pointer;
+      }
+      button:hover { filter: brightness(1.03); }
+      #status {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px dashed var(--border);
+        background: rgba(255, 255, 255, 0.72);
+        white-space: pre-wrap;
+      }
+      @media (max-width: 640px) {
+        .card { padding: 20px; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Razorpay Test Checkout</h1>
+      <p>This page is wired to the freshly created test order. Click the button and use Razorpay test card details to simulate a payment.</p>
+      <div class="grid">
+        <div class="stat"><div class="label">Order ID</div><div class="value">order_Sit5y2K5IoetlL</div></div>
+        <div class="stat"><div class="label">Amount</div><div class="value">10000 INR</div></div>
+        <div class="stat"><div class="label">Receipt</div><div class="value">rcpt_1777373814272</div></div>
+        <div class="stat"><div class="label">Customer</div><div class="value">Test User</div></div>
+      </div>
+      <button id="payButton">Pay with Razorpay</button>
+      <div id="status">Waiting for checkout...</div>
+    </main>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      const statusEl = document.getElementById('status');
+      const options = {
+        key: "rzp_test_Sisdya7TlSzOhr",
+        amount: 10000,
+        currency: "INR",
+        name: "Test Payment",
+        description: "Razorpay test-mode payment simulation",
+        order_id: "order_Sit5y2K5IoetlL",
+        prefill: {
+          name: "Test User",
+          email: "test@example.com"
+        },
+        theme: {
+          color: '#0f766e'
+        },
+        handler: function (response) {
+          statusEl.textContent = 'Payment success:\n' + JSON.stringify(response, null, 2);
+        }
+      };
+
+      document.getElementById('payButton').addEventListener('click', () => {
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+          statusEl.textContent = 'Payment failed:\n' + JSON.stringify(response.error, null, 2);
+        });
+        rzp.open();
+      });
+    </script>
+  </body>
+</html>
