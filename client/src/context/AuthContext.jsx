@@ -30,12 +30,8 @@ export function AuthProvider({ children }) {
       setShowLogin(false);
       return { success: true };
     } catch (err) {
-      // Fallback to mock if backend is down or CORS blocks
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('zapspot_user', JSON.stringify(mockUser));
-      setShowLogin(false);
-      return { success: true };
+      // Pass the error to the UI instead of falling back to mock user
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -52,12 +48,7 @@ export function AuthProvider({ children }) {
       setShowSignup(false);
       return { success: true };
     } catch (err) {
-      const newUser = { ...mockUser, name, email };
-      setUser(newUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('zapspot_user', JSON.stringify(newUser));
-      setShowSignup(false);
-      return { success: true };
+      throw err;
     } finally {
       setLoading(false);
     }

@@ -15,8 +15,11 @@ export default function LoginModal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const result = await login(email, password);
-    if (!result.success) setError(result.error);
+    try {
+      await login(email, password);
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    }
   };
 
   const switchToSignup = () => {

@@ -16,8 +16,11 @@ export default function SignupModal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const result = await signup(name, email, password);
-    if (!result.success) setError(result.error);
+    try {
+      await signup(name, email, password);
+    } catch (err) {
+      setError(err.message || 'Signup failed. Please try again.');
+    }
   };
 
   const switchToLogin = () => {
