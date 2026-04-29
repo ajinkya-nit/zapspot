@@ -205,6 +205,20 @@
   box-shadow: 0 2px 8px rgba(0, 113, 227, 0.15);
 }
 
+.countdown-directions-btn.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.btn-spinner {
+  animation: spinLoader 1s linear infinite;
+}
+
+@keyframes spinLoader {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Action Buttons */
 .countdown-actions {
   display: flex;
@@ -415,6 +429,7 @@
 /* --- Enquiry Modal --- */
 .enquiry-body {
   padding: 0 24px 24px;
+  overflow-y: auto;
 }
 
 .enquiry-booking-info {
@@ -482,14 +497,165 @@
   line-height: 1.5;
 }
 
-/* Responsive */
+.reopen-countdown-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 980px;
+  box-shadow: var(--glass-shadow);
+  background: var(--glass-bg-solid);
+  backdrop-filter: var(--glass-blur);
+  color: var(--color-accent);
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid var(--glass-border-subtle);
+  animation: fadeIn 0.3s ease;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.reopen-countdown-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover);
+}
+
+/* Responsive Breakpoints */
+
+/* Tablet & Mobile Landscape (768px) */
 @media (max-width: 768px) {
   .booking-countdown {
     width: calc(100% - 32px);
     right: 16px;
+    top: 16px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
   }
 
   .change-slot-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Optimized Touch Targets (min 44px) */
+  .countdown-btn,
+  .countdown-directions-btn,
+  .enquiry-submit,
+  .report-submit-btn {
+    padding: 12px 16px;
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  .countdown-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .detail-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .countdown-modal {
+    max-height: 85vh;
+    width: calc(100% - 32px);
+    margin: 16px;
+  }
+  
+  .change-slot-item {
+    min-height: 44px;
+    padding: 12px 10px;
+  }
+}
+
+/* Large Phone (414px) */
+@media (max-width: 414px) {
+  .booking-countdown {
+    width: calc(100% - 24px);
+    right: 12px;
+    top: 12px;
+    padding: 16px;
+  }
+
+  .countdown-timer {
+    padding: 14px 0;
+  }
+
+  .timer-value {
+    font-size: 26px;
+  }
+
+  .countdown-modal-header {
+    padding: 16px 20px 10px;
+  }
+
+  .change-slot-grid,
+  .enquiry-body {
+    padding: 0 20px 20px;
+  }
+
+  .cancel-deduction-row {
+    font-size: 13px;
+  }
+}
+
+/* Medium Phone (375px) */
+@media (max-width: 375px) {
+  .booking-countdown {
+    width: calc(100% - 20px);
+    right: 10px;
+    top: 10px;
+    padding: 14px;
+  }
+
+  .countdown-station-name {
+    font-size: 13px;
+  }
+
+  .timer-value {
+    font-size: 24px;
+  }
+
+  .change-slot-grid {
+    grid-template-columns: 1fr; /* Stack slots on smaller phones */
+    gap: 10px;
+  }
+
+  .countdown-actions {
+    gap: 8px;
+  }
+}
+
+/* Small Phone (320px) */
+@media (max-width: 320px) {
+  .booking-countdown {
+    width: calc(100% - 16px);
+    right: 8px;
+    top: 8px;
+    padding: 12px;
+  }
+
+  .countdown-station-name {
+    font-size: 12px;
+  }
+
+  .timer-block {
+    min-width: 40px;
+  }
+
+  .timer-value {
+    font-size: 20px;
+  }
+
+  .countdown-btn .btn-deduction {
+    font-size: 9px;
+  }
+  
+  .countdown-btn,
+  .countdown-directions-btn {
+    font-size: 12px;
   }
 }

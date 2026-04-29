@@ -259,7 +259,7 @@ export default function StationMap() {
 
       {/* Map Area */}
       <div className="map-area">
-        {!drivingMode && <BookingCountdown stations={filteredStations} />}
+        {!drivingMode && <BookingCountdown stations={stations} userLocation={userLocation} onRoutesReady={handleRoutesReady} />}
         {!drivingMode && (
           <div className="map-controls">
             <button className={`btn btn-glass btn-sm ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}><Filter size={15} /> Filters</button>

@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Clock, Ban, RefreshCw, AlertCircle, MessageSquare, Send, ShieldAlert, MapPin, Navigation } from 'lucide-react';
+import { X, Clock, Ban, RefreshCw, AlertCircle, MessageSquare, Send, ShieldAlert, MapPin, Navigation, Loader } from 'lucide-react';
 import { useBooking } from '../../context/BookingContext';
 import { useToast } from '../../context/ToastContext';
 import { formatCurrency, generateTimeSlots } from '../../utils/helpers';
+import { getBothRoutes } from '../../services/tomtomRouting';
+import { mockStations } from '../../data/mockStations';
 import './BookingCountdown.css';
 
 // Parse a time slot string like "10:00 - 10:30" or "10:00 – 10:30" into start and end Date objects
@@ -50,7 +52,7 @@ function parseSlotTimes(timeSlot, dateStr) {
   return { startTime, endTime };
 }
 
-export default function BookingCountdown({ stations }) {
+export default function BookingCountdown({ stations, userLocation, onRoutesReady }) {
   const { bookings, cancelBooking, addEnquiry, updateBooking } = useBooking();
   const { toast } = useToast();
 
@@ -77,6 +79,41 @@ export default function BookingCountdown({ stations }) {
   const [enquiryText, setEnquiryText] = useState('');
   const [reportText, setReportText] = useState('');
   const [dismissed, setDismissed] = useState(false);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState(null);
+
+  const availableSlots = useMemo(() => {
+    if (!showChangeSlot) return [];
+    return generateTimeSlots('06:00', '23:00', 30);
+  }, [showChangeSlot]);
+
+  const handleGetDirections = async () => {
+    const targetId = activeBooking.stationId || activeBooking.station;
+    const targetName = activeBooking.stationName;
+
+    const station = stations?.find(s => s._id === targetId || s.name === targetName) || 
+                    mockStations?.find(s => s._id === targetId || s.name === targetName);
+                    
+    if (!station || !userLocation) {
+      toast.warning("Cannot calculate route. Missing station or user location.");
+      return;
+    }
+
+    setRouteLoading(true);
+    setRouteError(null);
+    try {
+      const routes = await getBothRoutes(userLocation, [station.lat, station.lng]);
+      if (onRoutesReady) {
+        onRoutesReady(station, routes);
+      }
+    } catch (err) {
+      console.error('[Directions]', err);
+      setRouteError(err.message || 'Could not calculate route');
+      toast.error(err.message || 'Could not calculate route');
+    } finally {
+      setRouteLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (activeBooking) {
@@ -198,8 +235,10 @@ export default function BookingCountdown({ stations }) {
 
     let alternativeStation = null;
     if (stations && stations.length > 0) {
+      const targetId = activeBooking.stationId || activeBooking.station;
+      const targetName = activeBooking.stationName;
       alternativeStation = stations.find(s =>
-        s._id !== activeBooking.stationId &&
+        s._id !== targetId && s.name !== targetName &&
         s.availableSlots > 0 &&
         s.status === 'available'
       );
@@ -208,7 +247,7 @@ export default function BookingCountdown({ stations }) {
     addEnquiry({
       bookingId: activeBooking._id,
       stationName: activeBooking.stationName,
-      stationId: activeBooking.stationId,
+      stationId: activeBooking.stationId || activeBooking.station,
       userName: 'Current User',
       message: `[CHARGER REPORT] ${reportText}`,
       date: new Date().toISOString().split('T')[0],
@@ -243,7 +282,7 @@ export default function BookingCountdown({ stations }) {
     addEnquiry({
       bookingId: activeBooking._id,
       stationName: activeBooking.stationName,
-      stationId: activeBooking.stationId,
+      stationId: activeBooking.stationId || activeBooking.station,
       userName: 'Current User',
       message: enquiryText,
       date: new Date().toISOString().split('T')[0],
@@ -254,11 +293,6 @@ export default function BookingCountdown({ stations }) {
     setShowEnquiry(false);
     toast.success('Enquiry submitted! The station owner will review and compensate accordingly.');
   };
-
-  const availableSlots = useMemo(() => {
-    if (!showChangeSlot) return [];
-    return generateTimeSlots('06:00', '23:00', 30);
-  }, [showChangeSlot]);
 
   const formatTime = (val) => String(val).padStart(2, '0');
 
@@ -272,6 +306,17 @@ export default function BookingCountdown({ stations }) {
 
   return (
     <>
+      {/* Reopen Button */}
+      {dismissed && activeBooking && (
+        <button 
+          className="reopen-countdown-btn"
+          onClick={() => setDismissed(false)}
+        >
+          <Clock size={16} />
+          Active Session
+        </button>
+      )}
+
       {/* Main countdown widget */}
       <div
         className="booking-countdown"
@@ -329,19 +374,15 @@ export default function BookingCountdown({ stations }) {
         </div>
 
         {/* Get Directions Button */}
-        <a
-          className="countdown-directions-btn"
-          href={(() => {
-            const station = stations?.find(s => s._id === activeBooking.stationId);
-            if (station) return `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`;
-            return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeBooking.stationName)}`;
-          })()}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          className={`countdown-directions-btn ${routeLoading ? 'loading' : ''}`}
+          onClick={handleGetDirections}
+          disabled={routeLoading}
+          id="countdown-get-directions-btn"
         >
-          <Navigation size={14} />
+          {routeLoading ? <Loader size={14} className="btn-spinner" /> : <Navigation size={14} />}
           <span>Get Directions</span>
-        </a>
+        </button>
 
         {/* Action Buttons */}
         <div className="countdown-actions">

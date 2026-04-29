@@ -222,6 +222,7 @@
 
 @media (max-width: 768px) {
   .navbar-search { display: none; }
+  .navbar-brand { margin-right: auto; }
   .navbar-links {
     position: fixed;
     top: var(--nav-height);
