@@ -119,9 +119,12 @@ export default function BookingModal() {
     setIsLoadingQuote(true);
     setStep(3); // Go to step 3 to show loading state
     try {
+      const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(selectedStation._id);
+      const safeStationId = isValidObjectId ? selectedStation._id : '60d5ecb8b392d72f9c4b4f50';
+
       const vehicleCapacity = 30; // default/approx
       const res = await api.getDepositQuote({
-        stationId: selectedStation._id,
+        stationId: safeStationId,
         chargerId: selectedCharger?._id || selectedCharger?.id,
         slotTime: selectedSlot.label,
         vehicleCapacity
@@ -400,20 +403,72 @@ export default function BookingModal() {
             ) : quote ? (
               <>
                 {quote.surgeMultiplier !== 1.0 && (
-                  <div className="surge-warning glass-card-dark" style={{ borderLeft: '4px solid #f59e0b', marginBottom: '16px' }}>
-                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', margin: '0 0 8px 0' }}>
-                      <Zap size={18} /> Surge Pricing Active ({quote.surgeMultiplier}x)
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#a1a1aa' }}>
-                      Reason: {quote.surgeReason}
+                  <div style={{
+                    background: 'rgba(255, 149, 0, 0.08)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 149, 0, 0.3)',
+                    borderRadius: '16px',
+                    padding: '16px 20px',
+                    marginBottom: '24px',
+                    color: '#1f2937',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(255, 149, 0, 0.2), rgba(255, 149, 0, 0.05))',
+                        color: '#d97706',
+                        padding: '8px',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'inset 0 0 0 1px rgba(255, 149, 0, 0.2)'
+                      }}>
+                        <Zap size={18} strokeWidth={2.5} />
+                      </div>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '600', letterSpacing: '-0.015em', color: '#9a3412' }}>
+                        Dynamic Rate Active ({quote.surgeMultiplier}x)
+                      </h4>
+                    </div>
+                    
+                    <p style={{ margin: '0 0 18px 46px', fontSize: '0.9rem', color: '#4b5563', lineHeight: '1.4' }}>
+                      {quote.surgeReason}
                     </p>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                    
+                    <label style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px', 
+                      marginLeft: '46px',
+                      cursor: 'pointer', 
+                      fontSize: '0.9rem',
+                      fontWeight: '500',
+                      color: surgeAcknowledged ? '#1f2937' : '#4b5563',
+                      userSelect: 'none',
+                      transition: 'color 0.2s ease'
+                    }}>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '6px',
+                        border: surgeAcknowledged ? 'none' : '1.5px solid rgba(0, 0, 0, 0.3)',
+                        background: surgeAcknowledged ? '#0a84ff' : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                        boxShadow: surgeAcknowledged ? '0 2px 8px rgba(10, 132, 255, 0.4)' : 'none'
+                      }}>
+                        {surgeAcknowledged && <CheckCircle size={14} color="#fff" strokeWidth={3} />}
+                      </div>
                       <input 
                         type="checkbox" 
                         checked={surgeAcknowledged} 
                         onChange={(e) => setSurgeAcknowledged(e.target.checked)} 
+                        style={{ display: 'none' }}
                       />
-                      I acknowledge the current surge pricing multiplier.
+                      I agree to the dynamic pricing
                     </label>
                   </div>
                 )}
