@@ -45,4 +45,8 @@ export const api = {
   getOwnerAnalytics: () => request('/owner/analytics'),
   toggleCharger: (stationId, chargerId, data) =>
     request(`/owner/station/${stationId}/charger/${chargerId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Billing
+  getDepositQuote: (data) => request('/billing/quote', { method: 'POST', body: JSON.stringify(data) }),
+  endSession: (data) => request('/billing/session/end', { method: 'POST', body: JSON.stringify(data) }),
 };

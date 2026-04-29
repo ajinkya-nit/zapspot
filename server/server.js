@@ -10,6 +10,8 @@ import bookingRoutes from './routes/bookings.js';
 import reviewRoutes from './routes/reviews.js';
 import ownerRoutes from './routes/owner.js';
 import routeRoutes from './routes/route.js';
+import billingRoutes from './routes/billing.js';
+import { initCronJobs } from './services/cronService.js';
 
 dotenv.config();
 
@@ -49,6 +51,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/route', routeRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -65,6 +68,7 @@ mongoose.connect(mongoUri, {
 })
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
+    initCronJobs();
     app.listen(PORT, () => {
       console.log(`🚀 Zapspot server running on port ${PORT}`);
     });

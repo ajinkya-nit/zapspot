@@ -28,6 +28,7 @@ const stationSchema = new mongoose.Schema({
   openingTime: { type: String, default: '06:00' },
   closingTime: { type: String, default: '23:00' },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  demandScore: { type: Number, default: 0, min: 0, max: 100 },
 }, { timestamps: true });
 
 stationSchema.index({ location: '2dsphere' });

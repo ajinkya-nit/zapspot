@@ -102,6 +102,9 @@ export default function BookingModal() {
   const [booking, setBooking] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [quote, setQuote] = useState(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  const [surgeAcknowledged, setSurgeAcknowledged] = useState(false);
 
   const timeSlots = useMemo(() => {
     if (!selectedStation) return [];
@@ -111,10 +114,33 @@ export default function BookingModal() {
   if (!showBooking || !selectedStation) return null;
 
   const kwhEstimate = ((selectedCharger?.power || 22) * 0.5 * 0.9).toFixed(1);
-  const baseCost = Math.max(1, Math.round(kwhEstimate * selectedStation.pricePerKwh));
-  const discount = Math.min(paymentMethod === 'upi' ? 10 : 0, baseCost);
-  const gst = Math.max(0, Math.round((baseCost - discount) * 0.18));
-  const total = Math.max(0, baseCost - discount + gst);
+
+  const handleContinueToPayment = async () => {
+    setIsLoadingQuote(true);
+    setStep(3); // Go to step 3 to show loading state
+    try {
+      const vehicleCapacity = 30; // default/approx
+      const res = await api.getDepositQuote({
+        stationId: selectedStation._id,
+        chargerId: selectedCharger?._id || selectedCharger?.id,
+        slotTime: selectedSlot.label,
+        vehicleCapacity
+      });
+      setQuote(res);
+      // Automatically acknowledge if no surge
+      if (res.surgeMultiplier === 1) {
+        setSurgeAcknowledged(true);
+      } else {
+        setSurgeAcknowledged(false);
+      }
+    } catch (err) {
+      console.error('Quote fetch failed:', err);
+      alert('Failed to calculate pricing quote. Please try again.');
+      setStep(2); // Go back
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  };
 
   const handleConfirm = async () => {
     setIsProcessing(true);
@@ -128,7 +154,8 @@ export default function BookingModal() {
       }
 
       // Create Order on Backend
-      const order = await api.createRazorpayOrder(total);
+      const amountToPay = quote?.depositAmount || 50; // fallback to 50 if quote fails somehow
+      const order = await api.createRazorpayOrder(amountToPay);
 
       if (!order || !order.id) {
         alert('Server error. Please try again.');
@@ -148,9 +175,17 @@ export default function BookingModal() {
         chargerType: selectedCharger?.type || 'Type 2',
         date: selectedDate,
         timeSlot: selectedSlot?.label,
-        cost: total,
+        cost: amountToPay,
         totalKwh: parseFloat(kwhEstimate),
         vehicle: user?.vehicles?.[0]?.name || 'My EV',
+        // Advanced Billing details
+        basePortRate: quote?.basePortRate,
+        effectiveRate: quote?.effectiveRate,
+        todAdjustment: quote?.todAdjustment,
+        surgeMultiplier: quote?.surgeMultiplier,
+        surgeBreakdown: quote?.surgeBreakdown,
+        surgeReason: quote?.surgeReason,
+        baseFarePaid: amountToPay
       };
 
       const options = {
@@ -186,7 +221,7 @@ export default function BookingModal() {
               charger: selectedCharger?.type,
               date: selectedDate,
               time: selectedSlot?.label,
-              cost: total,
+              cost: amountToPay,
             });
             QRCode.toDataURL(qrData, {
               width: 200,
@@ -230,6 +265,8 @@ export default function BookingModal() {
     setSelectedDate('');
     setSelectedSlot(null);
     setBooking(null);
+    setQuote(null);
+    setSurgeAcknowledged(false);
     closeBooking();
   };
 
@@ -322,7 +359,7 @@ export default function BookingModal() {
 
             <div className="step-actions">
               <button className="btn btn-secondary" onClick={() => setStep(1)}>Back</button>
-              <button className="btn btn-primary" onClick={() => setStep(3)}>Continue to Payment</button>
+              <button className="btn btn-primary" onClick={handleContinueToPayment}>Continue to Payment</button>
             </div>
           </div>
         )}
@@ -355,38 +392,60 @@ export default function BookingModal() {
               </div>
             </div>
 
-            <div className="cost-breakdown glass-card-dark">
-              <h4>Cost Breakdown</h4>
-              <div className="cost-row">
-                <span>{kwhEstimate} kWh × ₹{selectedStation.pricePerKwh}</span>
-                <span>{formatCurrency(baseCost)}</span>
+            {isLoadingQuote ? (
+              <div className="quote-loading" style={{ padding: '40px', textAlign: 'center' }}>
+                <Loader2 className="spinner" size={32} style={{ margin: '0 auto 16px', display: 'block', color: '#10b981' }} />
+                <p>Calculating dynamic base fare...</p>
               </div>
-              {discount > 0 && (
-                <div className="cost-row discount">
-                  <span>UPI Discount</span>
-                  <span>-{formatCurrency(discount)}</span>
+            ) : quote ? (
+              <>
+                {quote.surgeMultiplier !== 1.0 && (
+                  <div className="surge-warning glass-card-dark" style={{ borderLeft: '4px solid #f59e0b', marginBottom: '16px' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', margin: '0 0 8px 0' }}>
+                      <Zap size={18} /> Surge Pricing Active ({quote.surgeMultiplier}x)
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#a1a1aa' }}>
+                      Reason: {quote.surgeReason}
+                    </p>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={surgeAcknowledged} 
+                        onChange={(e) => setSurgeAcknowledged(e.target.checked)} 
+                      />
+                      I acknowledge the current surge pricing multiplier.
+                    </label>
+                  </div>
+                )}
+
+                <div className="cost-breakdown glass-card-dark">
+                  <h4>Booking Deposit</h4>
+                  <p className="text-secondary" style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
+                    A base fare is required to reserve the port. The final bill will be calculated after the session.
+                  </p>
+                  <div className="cost-row total">
+                    <span>Deposit Due</span>
+                    <strong>{formatCurrency(quote.depositAmount)}</strong>
+                  </div>
                 </div>
-              )}
-              <div className="cost-row">
-                <span>GST (18%)</span>
-                <span>{formatCurrency(gst)}</span>
-              </div>
-              <div className="cost-row total">
-                <span>Total</span>
-                <strong>{formatCurrency(total)}</strong>
-              </div>
-            </div>
+              </>
+            ) : null}
 
             <div className="step-actions">
               <button className="btn btn-secondary" disabled={isProcessing} onClick={() => setStep(2)}>Back</button>
-              <button className="btn btn-success btn-lg" disabled={isProcessing} onClick={handleConfirm} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <button 
+                className="btn btn-success btn-lg" 
+                disabled={isProcessing || isLoadingQuote || !surgeAcknowledged || !quote} 
+                onClick={handleConfirm} 
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
                 {isProcessing ? (
                   <>
                     <Loader2 className="spinner" size={20} />
                     Processing...
                   </>
                 ) : (
-                  `Pay ${formatCurrency(total)}`
+                  `Pay ${formatCurrency(quote?.depositAmount || 0)}`
                 )}
               </button>
             </div>
